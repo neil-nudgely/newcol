@@ -58,18 +58,17 @@ const TEMPLATE = `
 <div id="hud">
   <div class="hud-left">
     <span class="brand">NEWCOL <span id="brand-empire" class="brand-empire"></span></span>
-    <span class="hud-stat" id="stat-year"></span>
-    <span class="hud-stat hud-era" id="stat-era"></span>
+    <span class="hud-stat" id="stat-year" data-era=""></span>
     <span class="hud-stat" id="stat-money"></span>
-    <span class="hud-stat" id="stat-insight"></span>
     <span class="hud-stat" id="stat-settlers"></span>
     <span class="hud-stat" id="stat-loyalty"></span>
     <span class="hud-stat" id="stat-warning"></span>
   </div>
   <div class="hud-right">
-    <button id="btn-declare" class="btn btn-danger hidden">Declare Independence</button>
-    <button id="btn-declare-faith" class="btn btn-danger hidden"></button>
-    <button id="btn-declare-wealth" class="btn btn-danger hidden"></button>
+    <span id="causes-wrap" class="causes-wrap hidden">
+      <button id="btn-causes" class="btn btn-danger">⚑ <span id="causes-badge"></span></button>
+      <div id="causes-menu" class="causes-menu hidden"></div>
+    </span>
     <button id="btn-save" class="btn btn-ghost">Save</button>
     <button id="btn-load" class="btn btn-ghost hidden">Load</button>
     <button id="btn-research" class="btn btn-ghost">Research</button>
@@ -139,9 +138,11 @@ export const ui = {
       this.refresh();
     });
     this.$('#btn-newgame').addEventListener('click', () => this.cb.onNewGame());
-    this.$('#btn-declare').addEventListener('click', () => this.cb.onDeclare('independence'));
-    this.$('#btn-declare-faith').addEventListener('click', () => this.cb.onDeclare('faith'));
-    this.$('#btn-declare-wealth').addEventListener('click', () => this.cb.onDeclare('wealth'));
+    this.$('#btn-causes').addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.$('#causes-menu').classList.toggle('hidden');
+    });
+    document.addEventListener('click', () => this.$('#causes-menu').classList.add('hidden'));
     this.$('#btn-save').addEventListener('click', () => this.cb.onSave());
     this.$('#btn-load').addEventListener('click', () => this.cb.onLoad());
   },
@@ -226,24 +227,32 @@ export const ui = {
     const s = this._s!;
     const canEnd = s.pendingEvents.length === 0 && !s.victory;
     (this.$('#btn-endturn') as HTMLButtonElement).disabled = !canEnd;
-    this.$('#btn-declare').classList.toggle('hidden', !canDeclare(s));
-
+    // The three causes live in one dropdown so the nav bar never has to grow.
     const faith = faithReady(s);
     const anyFaith = s.towns.some((t) => t.owner === s.player && t.faith > 0);
-    const faithBtn = this.$('#btn-declare-faith') as HTMLButtonElement;
-    faithBtn.classList.toggle('hidden', s.victory !== null ? true : !anyFaith);
-    faithBtn.disabled = !canDeclareFaith(s);
-    faithBtn.textContent = canDeclareFaith(s)
-      ? 'Proclaim the City upon a Hill'
-      : `City upon a Hill — ${faith}/3 towns at faith ${FAITH_TARGET}`;
-
     const anyExports = s.exportValBy[s.player] > 0;
-    const wealthBtn = this.$('#btn-declare-wealth') as HTMLButtonElement;
-    wealthBtn.classList.toggle('hidden', s.victory !== null ? true : !anyExports);
-    wealthBtn.disabled = !canDeclareWealth(s);
-    wealthBtn.textContent = canDeclareWealth(s)
-      ? 'Sign the Ledger'
-      : `The Ledger — £${Math.round(s.exportValBy[s.player])}/£${WEALTH_TARGET} exported`;
+    const warOn = s.warActive;
+    const causes = [
+      { kind: 'independence' as const, label: 'Declare Independence', ready: canDeclare(s), show: !warOn && (canDeclare(s) || avgLoyalty(s) < 55), status: `Loyalty ${avgLoyalty(s)} — every town at 40 or less, 3 towns` },
+      { kind: 'faith' as const, label: 'City upon a Hill', ready: canDeclareFaith(s), show: !s.victory && anyFaith, status: `${faith}/3 towns at faith ${FAITH_TARGET}` },
+      { kind: 'wealth' as const, label: 'Sign the Ledger', ready: canDeclareWealth(s), show: !s.victory && anyExports, status: `£${Math.round(s.exportValBy[s.player])} of £${WEALTH_TARGET} exported` },
+    ].filter((c) => c.show);
+    const ready = causes.filter((c) => c.ready).length;
+    this.$('#causes-wrap').classList.toggle('hidden', causes.length === 0);
+    this.$('#causes-badge').textContent = ready > 0 ? `${ready} ready` : 'Causes';
+    const menu = this.$('#causes-menu');
+    menu.innerHTML = causes.map((c) => `
+      <button class="cause-row" data-cause="${c.kind}" ${c.ready ? '' : 'disabled'}>
+        <span class="cause-label">${c.ready ? '⚑ ' : ''}${c.label}</span>
+        <span class="cause-status">${warOn && c.kind === 'independence' ? 'at war' : c.status}</span>
+      </button>`).join('');
+    menu.querySelectorAll<HTMLButtonElement>('[data-cause]').forEach((b) => {
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        menu.classList.add('hidden');
+        this.cb.onDeclare(b.dataset.cause as 'independence' | 'faith' | 'wealth');
+      });
+    });
 
     this.$('#btn-load').classList.toggle('hidden', !hasSave());
     this.renderHud(s);
@@ -280,16 +289,16 @@ export const ui = {
     const frigates = s.units.filter((u) => u.owner === s.player && u.kind === 'frigate').length;
     const atSea = s.ships.filter((sh) => sh.owner === s.player);
     const pending = atSea.reduce((a, sh) => a + sh.value * (1 - crownDutyFor(s.player)), 0);
-    this.$('#stat-year').textContent = `${s.year} · ${SEASONS[s.season]}`;
-    (this.$('#stat-era') as HTMLElement).textContent = ERA_NAMES[s.era];
+    const yearEl = this.$('#stat-year');
+    yearEl.textContent = `${s.year} · ${SEASONS[s.season]}`;
+    (yearEl as HTMLElement).dataset.era = ERA_NAMES[s.era];
     (this.$('#brand-empire') as HTMLElement).textContent = EMPIRE_NAMES[s.player];
     this.$('#stat-money').innerHTML =
       `£${Math.round(s.treasury[s.player])} <span class="dim">(+${income})</span>` +
-      (atSea.length > 0 ? ` <span class="dim">· ⛵ ${atSea.length} at sea, £${Math.round(pending)} due</span>` : '');
-    this.$('#stat-insight').innerHTML = `✦ ${Math.floor(s.insight[s.player] ?? 0)} <span class="dim">insight</span>`;
-    (this.$('#btn-research') as HTMLButtonElement).textContent = `Learning ${(s.researched[s.player] ?? []).length + (s.founders[s.player] ?? []).length}/${TECHS.length + FOUNDERS.length}`;
-    this.$('#stat-settlers').textContent =
-      `⚑ ${settlers} settlers${arms > 0 ? ` · ⚔ ${arms} under arms` : ''}${frigates > 0 ? ` · ⛵ ${frigates} frigate${frigates > 1 ? 's' : ''}` : ''}`;
+      (atSea.length > 0 ? ` <span class="dim" title="${atSea.length} ship${atSea.length > 1 ? 's' : ''} at sea">· ⛵${atSea.length} £${Math.round(pending)} due</span>` : '');
+    (this.$('#btn-research') as HTMLButtonElement).innerHTML = `✦${Math.floor(s.insight[s.player] ?? 0)} <span class=\"dim\">· Learning ${(s.researched[s.player] ?? []).length + (s.founders[s.player] ?? []).length}/${TECHS.length + FOUNDERS.length}</span>`;
+    (this.$('#stat-settlers') as HTMLElement).innerHTML =
+      `⚑ ${settlers}${arms > 0 ? ` · ⚔ ${arms}` : ''}${frigates > 0 ? ` · ⛵ ${frigates} frigate${frigates > 1 ? 's' : ''}` : ''}`;
     const loy = avgLoyalty(s);
     this.$('#stat-loyalty').innerHTML =
       `Loyalty <span style="color:${loyaltyColor(loy)}">${loy}</span>`;

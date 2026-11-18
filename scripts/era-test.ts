@@ -44,7 +44,7 @@ const era2 = await page.evaluate(() => {
   })();
   const g = (window as any).__game;
   return {
-    hudEra: document.getElementById('stat-era')?.textContent,
+    hudEra: document.getElementById('stat-year')?.dataset.era,
     stateEra: g.state.era,
     hasSugarRow: body.includes('Sugar'),
     hasTobaccoBarn: body.includes('Tobacco Barn'),
@@ -81,7 +81,7 @@ const era3 = await page.evaluate(() => {
   })();
   const g = (window as any).__game;
   return {
-    hudEra: document.getElementById('stat-era')?.textContent,
+    hudEra: document.getElementById('stat-year')?.dataset.era,
     stateEra: g.state.era,
     hasIndigoRow: body.includes('Indigo'),
     hasArtillery: body.includes('Artillery'),

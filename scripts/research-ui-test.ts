@@ -22,7 +22,7 @@ await page.click('#btn-research');
 await page.waitForTimeout(200);
 const rows = await page.$$eval('.tech-row', (els) => els.map((e) => e.className));
 console.log('tech rows:', JSON.stringify(rows));
-const insightStat = await page.$eval('#stat-insight', (e) => e.textContent);
+const insightStat = await page.$eval('#btn-research', (e) => e.textContent);
 console.log('insight stat:', insightStat);
 
 // Buy Crop Rotation (fallow, cost 8, era 1) — should be enabled with 60 insight
@@ -42,11 +42,11 @@ await page.waitForTimeout(150);
 const out = await page.evaluate(() => {
   const g = (window as any).__game;
   const p = g.state.player;
-  return { researched: g.state.researched[p], founders: g.state.founders[p], insight: g.state.insight[p], insightStat: document.getElementById('stat-insight')?.textContent };
+  return { researched: g.state.researched[p], founders: g.state.founders[p], insight: g.state.insight[p], insightStat: document.getElementById('btn-research')?.textContent };
 });
 console.log('after buy:', JSON.stringify(out));
 
-const ok = btnText.includes('Learning 0/16')
+const ok = btnText.includes('✦0') && btnText.includes('Learning 0/16')
   && rows.length === 16
   && !fallowDisabled
   && out.researched.includes('fallow') && out.founders.includes('columbus')
