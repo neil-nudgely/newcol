@@ -164,7 +164,7 @@ function processOutbreaks(s: GameState): void {
 }
 /** The Crown's duty on a ship's cargo — it climbs as the colony's defiance grows. */
 export function effectiveDuty(s: GameState, owner: Owner): number {
-  if (owner === s.player) return s.taxRate / 100;
+  if (owner === (s.crownSubject ?? s.player)) return s.taxRate / 100;
   return crownDutyFor(owner);
 }
 
@@ -778,7 +778,7 @@ export function sendShip(
   }
   t.shippedThisTurn = true;
   t.seasonGross = sold + value;
-  if (t.owner === s.player) s.exportValue += value;
+  s.exportValBy[t.owner] += value;
   s.ships.push({
     id: s.nextShipId++,
     owner: t.owner,
@@ -1483,7 +1483,7 @@ export function resumeTrade(s: GameState): string | null {
 function warPhase(s: GameState): void {
   if (!s.warActive || s.victory) return;
   s.warTurns++;
-  const engTowns = s.towns.filter((t) => t.owner === s.player);
+  const engTowns = s.towns.filter((t) => t.owner === s.crownSubject);
   if (!s.garrison && s.wavesFired < 5) {
     s.refIn--;
     if (s.refIn <= 0 && engTowns.length > 0) {
@@ -1513,7 +1513,7 @@ function warPhase(s: GameState): void {
   if (s.warTurns >= 48 && !s.garrison && s.occupations.length === 0) {
     s.warActive = false;
     if (engTowns.length >= 2) {
-      s.victory = { kind: 'independence', year: s.year, reason: 'The counted cost of a war across the water outran the Crown’s patience.' };
+      s.victory = { kind: 'independence', year: s.year, owner: s.crownSubject, reason: 'The counted cost of a war across the water outran the Crown’s patience.' };
       pushEvent(s, {
         kind: 'declare',
         title: 'The King Counts the Cost',
@@ -1522,7 +1522,7 @@ function warPhase(s: GameState): void {
           `closes against the war. Commissioners, then letters, then peace: the towns keep their paper and their guns.`,
       });
     } else {
-      s.victory = { kind: 'expelled', year: s.year, reason: 'the rebellion was strangled with the colony’s own tax money.' };
+      s.victory = { kind: 'expelled', year: s.year, owner: s.crownSubject, reason: 'the rebellion was strangled with the colony’s own tax money.' };
     }
   }
 }
@@ -1560,7 +1560,7 @@ export function unitStrength(u: Unit): number {
 
 function crownRetaliation(s: GameState): void {
   if (s.victory) return;
-  const engTowns = s.towns.filter((t) => t.owner === s.player);
+  const engTowns = s.towns.filter((t) => t.owner === s.crownSubject);
   if (engTowns.length === 0) return;
 
   if (s.defiance >= EMBARGO_DEFIANCE && !s.embargoNoted) {
@@ -1649,6 +1649,7 @@ function crownRetaliation(s: GameState): void {
             s.victory = {
               kind: 'expelled',
               year: s.year,
+              owner: s.crownSubject,
               reason: 'A third town under royal guard — the colony is closed.',
             };
           }
@@ -1672,7 +1673,7 @@ function isOccupied(s: GameState, townId: number): boolean {
 }
 
 function crownBusiness(s: GameState): void {
-  const engTowns = s.towns.filter((t) => t.owner === s.player);
+  const engTowns = s.towns.filter((t) => t.owner === s.crownSubject);
   if (engTowns.length === 0) return;
   if (!s.navActPassed && s.year >= NAV_ACT_YEAR) {
     s.navActPassed = true;
@@ -1714,9 +1715,9 @@ export const FAITH_TARGET = 75;
 export const WEALTH_TARGET = 11000;
 
 export function canDeclare(s: GameState): boolean {
-  const engTowns = s.towns.filter((t) => t.owner === s.player);
+  const engTowns = s.towns.filter((t) => t.owner === s.crownSubject);
   return (
-    !s.victory && !s.warActive &&
+    !s.victory && !s.warActive && s.player === s.crownSubject &&
     engTowns.length >= 3 &&
     engTowns.every((t) => t.loyalty <= 40)
   );
@@ -1728,7 +1729,7 @@ export function canDeclareFaith(s: GameState): boolean {
 }
 
 export function canDeclareWealth(s: GameState): boolean {
-  return !s.victory && !s.warActive && s.exportValue >= WEALTH_TARGET;
+  return !s.victory && !s.warActive && s.exportValBy[s.player] >= WEALTH_TARGET;
 }
 
 export function faithReady(s: GameState): number {
@@ -1758,6 +1759,7 @@ export function declare(s: GameState, kind: DeclareKind): void {
     s.victory = {
       kind: 'faith',
       year: s.year,
+      owner: s.player,
       reason: 'A city upon a hill, and the hill faces the sea.',
     };
     pushEvent(s, {
@@ -1773,13 +1775,14 @@ export function declare(s: GameState, kind: DeclareKind): void {
     s.victory = {
       kind: 'wealth',
       year: s.year,
-      reason: `£${Math.round(s.exportValue)} sent across the water. The ledger is the argument.`,
+      owner: s.player,
+      reason: `£${Math.round(s.exportValBy[s.player])} sent across the water. The ledger is the argument.`,
     };
     pushEvent(s, {
       kind: 'declare',
       title: 'The Ledger',
       body:
-        `In ${s.year}, the merchant houses of London do the math and find it uncomfortable: £${Math.round(s.exportValue)} ` +
+        `In ${s.year}, the merchant houses of London do the math and find it uncomfortable: £${Math.round(s.exportValBy[s.player])} ` +
         `has left these shores, and half of it belongs to the Crown. The colony is no longer a cost to be administered; ` +
         `it is an engine to be kept. So the men of the colony keep the engine, and the key with it. No paper is signed. ` +
         `The invoices are the declaration.`,
@@ -1881,7 +1884,7 @@ export function endTurn(s: GameState): void {
   advanceRoadWorks(s);
   for (const u of s.units) u.moveLeft = u.kind === 'frigate' ? FRIGATE_MOVEMENT + (hasTech(s, u.owner, 'charts') ? 2 : 0) : SETTLED_MOVEMENT + (u.kind === 'ranger' ? 1 : 0) + (hasFounder(s, u.owner, 'columbus') ? 1 : 0) + (hasSkill(s, u.owner, 'scouting') ? 1 : 0);
   generateInsight(s);
-  for (const r of s.rivals) aiEmpire(s, r);
+  for (const r of s.rivals) if (!s.humans?.includes(r)) aiEmpire(s, r);
   updatePrices(s);
   // In the wake of first contact, something follows — not always the fever.
   for (const tri of s.tribes) {
@@ -1969,15 +1972,17 @@ export function endTurn(s: GameState): void {
 
   // Loyalty and faith shift slowly — a season is a fourth of a year.
   for (const t of s.towns) {
-    if (t.owner !== s.player) continue;
+    if (t.owner !== s.crownSubject) continue;
     let d = (70 - t.loyalty) * 0.015;
     if (has(t, 'meetinghouse')) {
       d -= hasFounder(s, t.owner, 'paine') ? 1.5 : 1;
-      t.faith = Math.min(100, t.faith + 0.7);
     }
     if (s.era >= 3) d -= 0.5;
-    if (hasTech(s, s.player, 'press')) d -= 0.5;
+    if (hasTech(s, s.crownSubject, 'press')) d -= 0.5;
     t.loyalty = clamp(t.loyalty + d * 0.25, 0, 100);
+  }
+  for (const t of s.towns) {
+    if (has(t, 'meetinghouse')) t.faith = Math.min(100, t.faith + 0.7);
   }
 
   for (const o of allOwners(s)) {
@@ -1986,6 +1991,19 @@ export function endTurn(s: GameState): void {
     s.treasury[o] += s.income[o];
   }
 
+  // Hotseat: pass the map to the next governor before their eyes get the new world.
+  if (s.humans && s.humans.length > 1 && !s.victory) {
+    const order = s.humans;
+    s.player = order[(order.indexOf(s.player) + 1) % order.length] ?? s.player;
+    if (!s.victory) {
+      pushEvent(s, {
+        kind: 'info',
+        title: `Pass the Map — ${EMPIRE_NAMES[s.player]}`,
+        body: `The ${DEMOS[s.player]} council takes the ledger. What the last governor saw is now this governor's world.`,
+        choices: [{ label: `${EMPIRE_NAMES[s.player]} takes the map`, hint: 'Begin the season.' }],
+      });
+    }
+  }
   recomputeVisibility(s);
 }
 

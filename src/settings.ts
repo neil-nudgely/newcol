@@ -3,10 +3,12 @@ export interface Settings {
   fog: boolean;
   /** Small synthesised sound effects. */
   sound: boolean;
+  /** A slow synthesised sea shanty pad, for the long voyage. */
+  music: boolean;
 }
 
 const KEY = 'newcol-settings';
-const DEFAULTS: Settings = { fog: true, sound: true };
+const DEFAULTS: Settings = { fog: true, sound: true, music: false };
 let cache: Settings | null = null;
 
 export function getSettings(): Settings {

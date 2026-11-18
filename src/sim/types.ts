@@ -178,6 +178,8 @@ export interface Victory {
   kind: 'independence' | 'faith' | 'wealth' | 'expelled';
   year: number;
   reason: string;
+  /** Who won (or was expelled); the original player when unset. */
+  owner?: Owner;
 }
 
 export interface Garrison {
@@ -214,7 +216,8 @@ export interface GameState {
   treasury: Record<Owner, number>;
   income: Record<Owner, number>;
   firstExport: boolean;
-  exportValue: number;
+  /** Per-owner lifetime export value landed on Europe (the wealth race). */
+  exportValBy: Record<Owner, number>;
   /** Player's Europe sell prices (mirror of sellP[player]) for UI convenience. */
   prices: Record<GoodId, number>;
   prevPrices: Record<GoodId, number>;
@@ -250,6 +253,10 @@ export interface GameState {
   /** The player's recorded actions, for colony codes and replay. */
   actionLog?: Array<{ t: number; a: string; args: unknown[] }>;
   victory: Victory | null;
+  /** Whichever colony the Crown's machinery (duty, garrisons, war) is aimed at — the first governor's. */
+  crownSubject: Owner;
+  /** Owners controlled by humans on this device (hotseat); defaults to just the starting player. */
+  humans?: Owner[];
   playerStart: { q: number; r: number };
   /** Active disease outbreaks. */
   outbreaks: Outbreak[];

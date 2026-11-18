@@ -54,9 +54,9 @@ function ring(s: GameState, q: number, r: number, terrain: 'grass' | 'forest') {
   ring(s, 20, 10, 'forest'); // no farmer slots: the crew go straight to trade
   const t = town(s, 20, 10, 2, ['dock'], { tobacco: 4 });
   s.season = 1; // coming endTurn is Summer: no tobacco harvest to muddy it
-  const before = s.exportValue;
+  const before = s.exportValBy[s.player];
   check('C1 the sloop sails', sendShip(s, t.id, { tobacco: 4 }) === null);
-  const gained = s.exportValue - before;
+  const gained = s.exportValBy[s.player] - before;
   const plain = 4 * s.sellP.england.tobacco;
   check(`C2 two traders add a tenth [${gained} vs ${plain}]`, gained === Math.round(plain * 1.1));
 }

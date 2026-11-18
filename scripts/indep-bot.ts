@@ -106,7 +106,7 @@ function play(seed: number, verbose = false): { kind: string; year: number | str
 
     if (canDeclare(s)) declare(s, 'independence');
     if (verbose && i % 24 === 0) {
-      console.log(`  t${i} y${s.year} imps=${eng.map((t) => t.improvements.join('+') || '-').join('|')} cons=${eng.map((t) => t.construction?.imp ?? '-').join(',')} fed=${eng.map((t) => t.fed).join(',')} ships=${s.ships.length} towns=${eng.length} can=${canDeclare(s)} loy=${eng.map((t) => Math.round(t.loyalty)).join(',')} war=${s.warActive} exp=${Math.round(s.exportValue)} tr=${Math.round(s.treasury[s.player])} settlers=${s.units.filter((u) => u.owner === s.player && u.kind === 'settler').length} mh=${eng.filter((t) => t.improvements.includes('meetinghouse')).length}`);
+      console.log(`  t${i} y${s.year} imps=${eng.map((t) => t.improvements.join('+') || '-').join('|')} cons=${eng.map((t) => t.construction?.imp ?? '-').join(',')} fed=${eng.map((t) => t.fed).join(',')} ships=${s.ships.length} towns=${eng.length} can=${canDeclare(s)} loy=${eng.map((t) => Math.round(t.loyalty)).join(',')} war=${s.warActive} exp=${Math.round(s.exportValBy[s.player])} tr=${Math.round(s.treasury[s.player])} settlers=${s.units.filter((u) => u.owner === s.player && u.kind === 'settler').length} mh=${eng.filter((t) => t.improvements.includes('meetinghouse')).length}`);
     }
   }
 

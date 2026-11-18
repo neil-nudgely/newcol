@@ -3,6 +3,49 @@ import { getSettings } from './settings';
 export type Sfx = 'click' | 'chime' | 'tick' | 'cannon' | 'fanfare';
 
 let ctx: AudioContext | null = null;
+let musicTimer: ReturnType<typeof setInterval> | null = null;
+let musicNodes: OscillatorNode[] = [];
+const CHORDS = [[98, 123, 147], [87, 110, 131], [98, 131, 165], [82, 110, 131]];
+let chordIdx = 0;
+
+function stopMusic(): void {
+  if (musicTimer) clearInterval(musicTimer);
+  musicTimer = null;
+  for (const o of musicNodes) { try { o.stop(); } catch { /* gone */ } }
+  musicNodes = [];
+}
+
+/** A wandering minor-key pad: three detuned sines, a new chord every eight seconds. */
+export function setMusic(on: boolean): void {
+  if (!on) { stopMusic(); return; }
+  if (musicTimer) return;
+  const play = () => {
+    if (!getSettings().music) { stopMusic(); return; }
+    try {
+      ctx ??= new AudioContext();
+      if (ctx.state === 'suspended') void ctx.resume();
+      for (const o of musicNodes) { try { o.stop(); } catch { /* gone */ } }
+      musicNodes = [];
+      const chord = CHORDS[chordIdx++ % CHORDS.length];
+      const t0 = ctx.currentTime;
+      for (const f of chord) {
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = 'sine';
+        o.frequency.value = f;
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.linearRampToValueAtTime(0.012, t0 + 2.5);
+        g.gain.linearRampToValueAtTime(0.0001, t0 + 8.4);
+        o.connect(g).connect(ctx!.destination);
+        o.start(t0);
+        o.stop(t0 + 8.5);
+        musicNodes.push(o);
+      }
+    } catch { /* no audio */ }
+  };
+  play();
+  musicTimer = setInterval(play, 8000);
+}
 let lastClick = 0;
 
 /** Tiny synthesised sound effects — no assets, no network. */

@@ -109,7 +109,7 @@ function bot(s: any, turns: number) {
     bot(s, 1);
     if (s.victory) break;
   }
-  console.log(`TEST 2 paths: independence first possible ${indAt}, faith ${faithAt}, wealth ${wealthAt} (exports £${Math.round(s.exportValue)})`);
+  console.log(`TEST 2 paths: independence first possible ${indAt}, faith ${faithAt}, wealth ${wealthAt} (exports £${Math.round(s.exportValBy[s.player])})`);
   console.log(`  victory: ${JSON.stringify(s.victory)}`);
 }
 

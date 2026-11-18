@@ -1,6 +1,6 @@
 import './styles.css';
 import { getSettings, setSetting } from './settings';
-import { sfx } from './audio';
+import { sfx, setMusic } from './audio';
 import { rec, replayGame } from './replay';
 import { createGame, eventChoice, saveGame, loadGame } from './sim/state';
 import { buildRoad,
@@ -126,9 +126,10 @@ function selectTile(q: number, r: number): void {
 
 let chosenPlayer: Owner = 'england';
 let chosenRivalCount = 1;
+let chosenCoop = false;
 
-function start(seed: number, player: Owner, rivalCount: number): void {
-  s = createGame(seed, player, rivalCount);
+function start(seed: number, player: Owner, rivalCount: number, coop = false): void {
+  s = createGame(seed, player, rivalCount, coop);
   scene.dispose();
   scene.init(stage(), s);
   ui.setState(s);
@@ -139,7 +140,7 @@ function start(seed: number, player: Owner, rivalCount: number): void {
 }
 
 function newGame(): void {
-  s = createGame(URL_SEED, chosenPlayer, chosenRivalCount);
+  s = createGame(URL_SEED, chosenPlayer, chosenRivalCount, chosenCoop);
   scene.dispose();
   scene.init(stage(), s);
   ui.setState(s);
@@ -305,6 +306,7 @@ ui.init({
   },
   onSetting: (key, value) => {
     setSetting(key, value);
+    if (key === 'music') setMusic(value);
     scene.refresh(s);
     afterChange();
   },
@@ -336,15 +338,17 @@ ui.init({
     syncSelection();
     flash(`Colony restored to ${g.year}.`);
   },
-  onBegin: (seed, player, rivalCount) => {
+  onBegin: (seed, player, rivalCount, coop) => {
     chosenPlayer = player;
     chosenRivalCount = rivalCount;
-    start(seed, player, rivalCount);
+    chosenCoop = coop;
+    start(seed, player, rivalCount, coop);
   },
 });
 
 scene.onSelectTile(selectTile);
 document.addEventListener('click', () => sfx('click'));
+if (getSettings().music) setMusic(true);
 if ('serviceWorker' in navigator && !location.port) {
   window.addEventListener('load', () => void navigator.serviceWorker.register('./sw.js').catch(() => undefined));
 }

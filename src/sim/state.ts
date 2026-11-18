@@ -376,7 +376,7 @@ const SCENARIOS: Record<Owner, EmpireScenario> = {
   },
 };
 
-export function createGame(seed: number, player: Owner = 'england', rivalCount: number = 1): GameState {
+export function createGame(seed: number, player: Owner = 'england', rivalCount: number = 1, hotseat = false): GameState {
   const base = mulberry32(seed);
   let rngCalls = 0;
   const rng = (): number => {
@@ -514,6 +514,7 @@ export function createGame(seed: number, player: Owner = 'england', rivalCount: 
     seed,
     player,
     rivals,
+    humans: hotseat && rivals.length > 0 ? [player, rivals[0]] : undefined,
     turn: 0,
     year: START_YEAR,
     season: 0,
@@ -532,7 +533,8 @@ export function createGame(seed: number, player: Owner = 'england', rivalCount: 
     treasury,
     income,
     firstExport: false,
-    exportValue: 0,
+    exportValBy: Object.fromEntries(Object.keys(EMPIRE_NAMES).map((o) => [o, 0])) as Record<Owner, number>,
+      crownSubject: player,
     prices: goodsOf((g) => g.base),
     prevPrices: goodsOf((g) => g.base),
     supply: ownerGoods(() => 0),
@@ -579,7 +581,7 @@ export function createGame(seed: number, player: Owner = 'england', rivalCount: 
   return s;
 }
 
-const SAVE_KEY = 'newcol-save-v16';
+const SAVE_KEY = 'newcol-save-v17';
 
 export function hasSave(): boolean {
   try {
@@ -617,6 +619,13 @@ export function loadGame(): GameState | null {
     if (obj.taxRate == null) { obj.taxRate = 10; obj.taxesPaid = 0; obj.tradeSevered = false; obj.warActive = false; obj.warTurns = 0; obj.refIn = 0; obj.wavesFired = 0; }
     if (!obj.roads) obj.roads = [];
     if (!obj.roadWork) obj.roadWork = [];
+    if (!obj.crownSubject) obj.crownSubject = obj.player;
+    if (!obj.exportValBy) {
+      obj.exportValBy = Object.fromEntries(Object.keys(EMPIRE_NAMES).map((o) => [o, 0])) as GameState['exportValBy'];
+      const legacy = (obj as unknown as Record<string, unknown>).exportValue;
+      if (typeof legacy === 'number') obj.exportValBy[obj.player] = legacy;
+    }
+    delete (obj as unknown as Record<string, unknown>).exportValue;
     if (!obj.supply) {
       const gmap = (fn: (g: (typeof GOODS)[number]) => number): Record<GoodId, number> =>
         Object.fromEntries(GOODS.map((g) => [g.id, fn(g)])) as Record<GoodId, number>;
@@ -673,7 +682,7 @@ function applyChoice(s: GameState, ev: GameEvent, idx: number): void {
       const rate = ev.data ?? Math.min(75, s.taxRate + 10);
       if (idx === 0) {
         s.taxRate = rate;
-        for (const t of s.towns) if (t.owner === s.player) t.loyalty = clamp(t.loyalty - 4, 0, 100);
+        for (const t of s.towns) if (t.owner === s.crownSubject) t.loyalty = clamp(t.loyalty - 4, 0, 100);
         s.log.unshift(`${s.year} — The colony grits its teeth and pays the King's ${rate}%. The ledger is written — and spent on redcoats.`);
       } else if (idx === 1) {
         const lump = 30 + s.taxRate;
@@ -683,7 +692,7 @@ function applyChoice(s: GameState, ev: GameEvent, idx: number): void {
       } else {
         s.tradeSevered = true;
         s.defiance++;
-        for (const t of s.towns) if (t.owner === s.player) t.loyalty = clamp(t.loyalty - 8, 0, 100);
+        for (const t of s.towns) if (t.owner === s.crownSubject) t.loyalty = clamp(t.loyalty - 8, 0, 100);
         s.log.unshift(`${s.year} — The ports stand empty to the mother country. The King will count this as rebellion.`);
         if (s.defiance >= 2 && !s.visited) {
           s.visited = true;
@@ -822,11 +831,11 @@ function applyChoice(s: GameState, ev: GameEvent, idx: number): void {
     }
     case 'visit': {
       if (idx === 0) {
-        s.treasury[s.player] -= 50;
-        for (const t of s.towns) if (t.owner === s.player) t.loyalty = clamp(t.loyalty + 15, 0, 100);
+        s.treasury[s.crownSubject] -= 50;
+        for (const t of s.towns) if (t.owner === s.crownSubject) t.loyalty = clamp(t.loyalty + 15, 0, 100);
         s.log.unshift(`${s.year} — You kneel. The commissioner departs, his ledger balanced, his opinion of you noted.`);
       } else {
-        for (const t of s.towns) if (t.owner === s.player) t.loyalty = clamp(t.loyalty - 15, 0, 100);
+        for (const t of s.towns) if (t.owner === s.crownSubject) t.loyalty = clamp(t.loyalty - 15, 0, 100);
         s.defiance = 3;
         s.log.unshift(`${s.year} — "No king crosses that sea to tell us how to govern." The commissioner leaves with his seal unbroken and his anger intact. He writes a long letter to London.`);
       }

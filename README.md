@@ -28,6 +28,12 @@ Sim suites live in `scripts/*-test.ts` and run headless via `scripts/test-all.mj
 `scripts/smoke.ts` plays a full game with the scripted bot; `scripts/balance-analysis.ts`
 reports race pacing.
 
+## Multiplayer
+
+Hotseat 2P (intro checkbox): a second governor takes the rival crown by hand, passing the
+map each season. The Crown's machinery still aims at the first colony — revolution is an
+English business; the second governor races on faith and the ledger instead.
+
 ## How a colony works (player-facing summary)
 
 - **Time**: one turn per season, four seasons per year (Spring…Winter). Goods have

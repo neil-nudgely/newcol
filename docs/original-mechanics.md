@@ -225,7 +225,8 @@ Deep-verification step (deferred): shallow-clone FreeCol and read `data/` XML +
 
 All eight backlog items are implemented (2026-11-17). Follow-up pass (same day): specialists-lite
 (§4: farmers/artisans/traders assigned from pop against terrain+building slots — jobSlots/jobWorkers
-in sim.ts), Custom House season quota (§9: £100/£200 landed per town per season, SALES_CAP),
+in sim.ts), hotseat 2P (s.humans rotation + s.crownSubject so crown machinery tracks the first colony;
+per-owner exportValBy + Victory.owner),, Custom House season quota (§9: £100/£200 landed per town per season, SALES_CAP),
 roads drawn on the map, fog/sound settings, onboarding hints, and colony codes (src/replay.ts:
 seed + action log = byte-exact replay — the async-multiplayer foundation). Remaining open verification notes:
 river navigation rules and REF spawn cadence were matched to FreeCol qualitatively, not

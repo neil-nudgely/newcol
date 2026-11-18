@@ -46,12 +46,12 @@ interface Callbacks {
   onFulfillDemand: (tribeIdx: number) => void;
   onBuyLand: (townId: number) => void;
   onRoad: (fromId: number, toId: number) => void;
-  onSetting: (key: 'fog' | 'sound', value: boolean) => void;
+  onSetting: (key: 'fog' | 'sound' | 'music', value: boolean) => void;
   onAdoptCode: (code: string) => void;
   onResumeTrade: () => void;
   onSave: () => void;
   onLoad: () => void;
-  onBegin: (seed: number, player: Owner, rivalCount: number) => void;
+  onBegin: (seed: number, player: Owner, rivalCount: number, coop: boolean) => void;
 }
 
 const TEMPLATE = `
@@ -181,6 +181,9 @@ export const ui = {
       </p>
       <div class="intro-seed">
         <label for="seed">World seed <input id="seed" type="text" value="${s.seed}" /></label>
+        <label class="set-row" title="Two governors, one keyboard: rival crowns you pick play by hand, passing the map each season. The Crown's machinery still aims at the first colony.">
+          <input id="hotseat" type="checkbox" /> Second governor (hotseat)
+        </label>
         <button id="btn-begin" class="btn btn-primary">Begin</button>
         ${hasSave() ? '<button id="btn-load-intro" class="btn">Load saved colony</button>' : ''}
       </div>`;
@@ -207,7 +210,8 @@ export const ui = {
     });
     this.$('#btn-begin').addEventListener('click', () => {
       const v = (this.$('#seed') as HTMLInputElement).value.trim();
-      this.cb.onBegin(v === '' ? s.seed : Number(v) || s.seed, chosen, rivalCount);
+      const coop = (this.$('#hotseat') as HTMLInputElement)?.checked ?? false;
+      this.cb.onBegin(v === '' ? s.seed : Number(v) || s.seed, chosen, rivalCount, coop);
     });
     const loadIntro = this.$('#btn-load-intro');
     if (loadIntro) {
@@ -233,13 +237,13 @@ export const ui = {
       ? 'Proclaim the City upon a Hill'
       : `City upon a Hill — ${faith}/3 towns at faith ${FAITH_TARGET}`;
 
-    const anyExports = s.exportValue > 0;
+    const anyExports = s.exportValBy[s.player] > 0;
     const wealthBtn = this.$('#btn-declare-wealth') as HTMLButtonElement;
     wealthBtn.classList.toggle('hidden', s.victory !== null ? true : !anyExports);
     wealthBtn.disabled = !canDeclareWealth(s);
     wealthBtn.textContent = canDeclareWealth(s)
       ? 'Sign the Ledger'
-      : `The Ledger — £${Math.round(s.exportValue)}/£${WEALTH_TARGET} exported`;
+      : `The Ledger — £${Math.round(s.exportValBy[s.player])}/£${WEALTH_TARGET} exported`;
 
     this.$('#btn-load').classList.toggle('hidden', !hasSave());
     this.renderHud(s);
@@ -775,7 +779,7 @@ export const ui = {
       modal.classList.remove('hidden');
       card.innerHTML = this.settingsHtml(s);
       card.querySelectorAll<HTMLInputElement>('[data-setting]').forEach((cb) => {
-        cb.addEventListener('change', () => this.cb.onSetting(cb.dataset.setting as 'fog' | 'sound', cb.checked));
+        cb.addEventListener('change', () => this.cb.onSetting(cb.dataset.setting as 'fog' | 'sound' | 'music', cb.checked));
       });
       card.querySelector('#btn-copy-code')?.addEventListener('click', () => {
         const ta = card.querySelector<HTMLTextAreaElement>('#code-out');
@@ -853,6 +857,7 @@ export const ui = {
       <div class="ctx-title">Settings</div>
       <label class="set-row"><input type="checkbox" data-setting="fog" ${set.fog ? 'checked' : ''}/> Fog of war <span class="dim">hide what your colony has not seen</span></label>
       <label class="set-row"><input type="checkbox" data-setting="sound" ${set.sound ? 'checked' : ''}/> Sound <span class="dim">small synthesised effects</span></label>
+      <label class="set-row"><input type="checkbox" data-setting="music" ${set.music ? 'checked' : ''}/> Sea music <span class="dim">a slow synthesised pad</span></label>
       <div class="ctx-sub">Colony code</div>
       <div class="ctx-dim">Every action of this colony, from the seed out — paste it anywhere to replay the game to this exact moment.</div>
       <textarea id="code-out" class="code-box" readonly rows="3" spellcheck="false">${encodeCode(s).slice(0, 120000)}</textarea>
@@ -1001,16 +1006,18 @@ export const ui = {
       return;
     }
     v.classList.remove('hidden');
-    const engTowns = s.towns.filter((t) => t.owner === s.player);
+    const winner = s.victory.owner ?? s.player;
+    const engTowns = s.towns.filter((t) => t.owner === winner);
     const kind = s.victory.kind;
+    const who = ` <span class="dim">· ${EMPIRE_NAMES[winner]}</span>`;
     this.$('#victory-card').innerHTML = kind === 'expelled'
-      ? `<h3 class="ev-title" style="color:#e08a58">THE COLONY IS CLOSED</h3>
+      ? `<h3 class="ev-title" style="color:#e08a58">THE COLONY IS CLOSED${who}</h3>
       <p class="ev-body">In ${s.victory.year}: ${s.victory.reason.toLowerCase()}
       The garrisons stand in the streets, the ports are blockaded, and the experiment in self-government ends.</p>
       <p class="intro-note">The Crown does not forget defiance — it occupies it.</p>
       <button data-again class="btn btn-primary">Play again</button>`
       : kind === 'faith'
-        ? `<h3 class="ev-title">A CITY UPON A HILL</h3>
+        ? `<h3 class="ev-title">A CITY UPON A HILL${who}</h3>
       <p class="ev-body">In ${s.victory.year}, ${s.victory.reason.toLowerCase()}
       ${engTowns.length} meeting houses rang at once, and the colony no longer answers to the Crown —
       it answers to its own conscience.</p>
@@ -1018,13 +1025,13 @@ export const ui = {
       itself before the guns ever spoke.</p>
       <button data-again class="btn btn-primary">Play again</button>`
         : kind === 'wealth'
-          ? `<h3 class="ev-title">THE LEDGER</h3>
+          ? `<h3 class="ev-title">THE LEDGER${who}</h3>
       <p class="ev-body">In ${s.victory.year}, ${s.victory.reason.toLowerCase()}
       The merchant houses of London keep the books, and the books keep the colony.</p>
           <p class="intro-note">In the long history, empire is mostly an accounting practice.
       You have simply done the arithmetic first.</p>
           <button data-again class="btn btn-primary">Play again</button>`
-          : `<h3 class="ev-title">INDEPENDENCE</h3>
+          : `<h3 class="ev-title">INDEPENDENCE${who}</h3>
       <p class="ev-body">In ${s.victory.year}, the colony stops answering to the Crown.
       ${engTowns.length} towns signed the paper; the ${s.year - 1607} years it took will be taught in schools that do not yet exist.</p>
       <p class="intro-note">In the long history, the paper is the easy part.

@@ -53,7 +53,7 @@ function run(seed: number, player: string) {
     }
     if (canDeclare(s)) { declare(s, 'independence'); break; }
   }
-  return { win: s.victory, first, exports: Math.round(s.exportValue) };
+  return { win: s.victory, first, exports: Math.round(s.exportValBy[s.player]) };
 }
 
 console.log(`WEALTH_TARGET=${WEALTH_TARGET} FAITH_TARGET=${FAITH_TARGET}`);
