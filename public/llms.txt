@@ -1,0 +1,13 @@
+# Newcol
+
+> A browser remake of Sid Meier's Colonization (1994): a deterministic, seeded colony sim
+> in TypeScript + Vite + Three.js. No backend, no login, no tracking.
+
+The game at the root URL: settle a coastal colony, trade with the native nations already
+here, ship goods through per-empire European markets that drift with your own dumping,
+manufacture raw goods into premium ones, and outlast a crown whose invading expeditions
+are funded by the taxes you paid.
+
+## Resources
+
+- [Game](/): play a colony from 1607; add ?seed=NNNN for a specific world.

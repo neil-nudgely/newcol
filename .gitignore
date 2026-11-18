@@ -1,0 +1,7 @@
+node_modules/
+dist/
+shots/
+.tmp-tests/
+.tmp-*.mjs
+*.tsbuildinfo
+.DS_Store
