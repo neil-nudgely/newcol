@@ -170,6 +170,8 @@ export interface Outbreak {
   duration: number;
   source: string;
   reached: string[];
+  /** True when a quarantined town penned the fever in — it will age out, not spread. */
+  halted?: boolean;
 }
 
 export type DeclareKind = 'independence' | 'faith' | 'wealth';

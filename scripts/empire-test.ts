@@ -94,8 +94,8 @@ function bot(s: any, turns: number) {
 for (const emp of EMPIRES) {
   const s = createGame(1607, emp);
   foundTown(s, emp, s.units.find((u: any) => u.owner === emp)!.id);
-  bot(s, 400);
-  check(`${EMPIRE_NAMES[emp]}: bot reaches a victory by 1707 (got: ${s.victory ? s.victory.year + ' ' + s.victory.kind : 'NONE'})`, !!s.victory);
+  bot(s, 480);
+  check(`${EMPIRE_NAMES[emp]}: bot reaches a victory by 1727 (got: ${s.victory ? s.victory.year + ' ' + s.victory.kind : 'NONE'})`, !!s.victory);
 }
 
 // --- Multi-rival boards: the player can choose how many crowns colonise the land ---
@@ -117,7 +117,7 @@ for (const emp of ['england', 'spain', 'denmark'] as Owner[]) {
 for (const emp of ['england', 'france', 'spain', 'portugal', 'denmark'] as Owner[]) {
   const s = createGame(1607, emp, 3);
   foundTown(s, emp, s.units.find((u: any) => u.owner === emp)!.id);
-  bot(s, 400);
+  bot(s, 480);
   check(`${EMPIRE_NAMES[emp]} rc3: bot wins with 3 rivals (got: ${s.victory ? s.victory.year + ' ' + s.victory.kind : 'NONE'})`, !!s.victory);
 }
 

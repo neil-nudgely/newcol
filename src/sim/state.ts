@@ -21,6 +21,8 @@ export const OUTBREAK_DURATION = 6;
 export const QUARANTINE_COST = 20;
 /** Turns a survivor of an outbreak is left alone — the fever skips the immune. */
 export const OUTBREAK_IMMUNITY = 12;
+/** Chance a fresh outbreak finds its way to the next settlement; decays to nothing as it ages (burn-out). */
+export const OUTBREAK_SPREAD_CHANCE = 0.85;
 
 const TOWN_NAMES: Record<Owner, readonly string[]> = {
   england: [
@@ -763,10 +765,17 @@ function applyChoice(s: GameState, ev: GameEvent, idx: number): void {
         const before = town.pop;
         town.pop = Math.max(1, Math.round(town.pop * (1 - mortality)));
         const lost = before - town.pop;
-        s.log.unshift(
-          `${s.year} — The sickness takes ${lost} of the people of ${town.name}. ` +
-          (quarantined ? 'The quarantine and the physic hold the worst of it back. ' : 'There was little anyone could do. '),
-        );
+        let line = `${s.year} — The sickness takes ${lost} of the people of ${town.name}. ` +
+          (quarantined ? 'The quarantine and the physic hold the worst of it back. ' : 'There was little anyone could do. ');
+        if (quarantined) {
+          // The town's roads are set at guard — this fever dies in the town that caught it.
+          const ob = s.outbreaks.find((o) => !o.halted && o.reached.includes(key!));
+          if (ob) {
+            ob.halted = true;
+            line += 'Watches stand on the roads out of town; the sickness will go no further.';
+          }
+        }
+        s.log.unshift(line);
       }
       break;
     }

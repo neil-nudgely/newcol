@@ -9,7 +9,7 @@ import {
 import { TECHS } from './techs';
 import { FOUNDERS } from './founders';
 import type { Era, Season } from './goods';
-import { START_YEAR, tileAt, townAt, pushEvent, isCoastal, isWaterfront, isSettleable, isLand, newTownName, inStartBand, recomputeVisibility, rollDemand , DISEASE_NAMES, TOWN_MORTALITY, TRIBAL_MORTALITY, OUTBREAK_SPREAD_RADIUS, OUTBREAK_DURATION, OUTBREAK_IMMUNITY, QUARANTINE_COST } from './state';
+import { START_YEAR, tileAt, townAt, pushEvent, isCoastal, isWaterfront, isSettleable, isLand, newTownName, inStartBand, recomputeVisibility, rollDemand , DISEASE_NAMES, TOWN_MORTALITY, TRIBAL_MORTALITY, OUTBREAK_SPREAD_RADIUS, OUTBREAK_DURATION, OUTBREAK_SPREAD_CHANCE, OUTBREAK_IMMUNITY, QUARANTINE_COST } from './state';
 import type {
   DeclareKind, GameState, GoodId, ImprovementId, Owner, Town, Tribe, Unit, UnitKind,
 } from './types';
@@ -141,9 +141,11 @@ function processOutbreaks(s: GameState): void {
       s.log.unshift(`${s.year} — ${ob.name} finally runs its course.`);
       continue;
     }
-    if (!fresh) {
+    if (!fresh && !ob.halted) {
+      // Fevers burn out: the young ones travel, the old ones fade where they stand.
+      const virulence = OUTBREAK_SPREAD_CHANCE * Math.max(0, 1 - (ob.age - 1) / (ob.duration - 2));
       const last = settlementAt(s, ob.reached[ob.reached.length - 1]);
-      if (last) {
+      if (last && chance(s.rng, virulence)) {
         const cands = all.filter((x) =>
           !ob.reached.includes(x.key) &&
           s.turn >= x.immuneUntil &&

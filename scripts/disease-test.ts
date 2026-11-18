@@ -78,5 +78,37 @@ function playerTownAtPop(pop: number, treasury: number) {
   check('C3 full toll without quarantine (pop <= 15)', t.pop <= 15);
 }
 
+// E: quarantine pens the fever in; without it the fever travels.
+function pairGame() {
+  const { s, t } = playerTownAtPop(24, 200);
+  const other = { ...t, id: 620, name: 'Severby', q: t.q + 3, r: t.r, immuneUntil: 0, seasonGross: 0, landBought: [], stock: { ...t.stock }, improvements: [], construction: null };
+  s.towns.push(other as any);
+  // good land round both, so pop moves come from the fever or growth — never famine
+  for (const q of [t.q - 1, t.q, t.q + 1, other.q - 1, other.q, other.q + 1]) for (const r of [t.r - 1, t.r, t.r + 1]) {
+    const idx = r * s.mapW + q;
+    if (s.tiles[idx]) s.tiles[idx].terrain = 'grass';
+  }
+  return { s, t, other: other as any };
+}
+{
+  const { s, t, other } = pairGame();
+  seedOutbreak(s, `t:${t.id}`, 'Typhus', true);
+  const ev = s.pendingEvents.find((e: any) => e.kind === 'outbreak');
+  eventChoice(s, ev!.id, 0); // quarantine
+  const otherBefore = other.pop;
+  for (let i = 0; i < 6; i++) { endTurn(s); resolve(s); }
+  check(`E1 a quarantined town is the fever's last stop [${otherBefore} -> ${other.pop}]`, other.pop >= otherBefore);
+  check('E2 the outbreak is halted or spent', s.outbreaks.every((o: any) => o.halted || !o.reached.includes(`t:${t.id}`)));
+}
+{
+  const { s, t, other } = pairGame();
+  seedOutbreak(s, `t:${t.id}`, 'Typhus', true);
+  const ev = s.pendingEvents.find((e: any) => e.kind === 'outbreak');
+  eventChoice(s, ev!.id, 1); // do nothing
+  const otherBefore = other.pop;
+  for (let i = 0; i < 6; i++) { endTurn(s); resolve(s); }
+  check(`E3 an unquarantined fever can travel [${otherBefore} -> ${other.pop}]`, other.pop < otherBefore);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);
