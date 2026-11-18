@@ -382,6 +382,7 @@ if (import.meta.env.DEV) {
       return u ? reachableTiles(s, u).map((t) => ({ q: t.q, r: t.r, cost: t.cost })) : [];
     },
     screenPos: (q: number, r: number) => scene.screenPos(q, r),
+    scene,
     shipRoute: (q: number, r: number) => scene.shipRoute(q, r),
     shipPos: (id: number) => scene.shipPos(id),
     pickAtScreen: (x: number, y: number) => scene.pickAtScreen(x, y),

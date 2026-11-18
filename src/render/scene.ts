@@ -328,20 +328,33 @@ export const scene: SceneView = {
     if (v.terrain.instanceColor) v.terrain.instanceColor.needsUpdate = true;
     // Your cleared lanes: brown ground and a laid plank, for those who can see them.
     v.roadsGroup.clear();
-    const plankGeo = new THREE.BoxGeometry(0.82, 0.05, 0.34);
+    // A unit box reused for every segment; each is scaled and yawed to link two tile
+    // centres, so the lane reads as one connected track, not scattered planks.
+    const segGeo = new THREE.BoxGeometry(1, 1, 1);
     const plankMat = new THREE.MeshLambertMaterial({ color: 0x7a5c3a });
+    const seen = (ti: number) => !fogOn || s.explored[ti];
     for (const rd of s.roads) {
-      const mine = rd.owner === s.player;
       for (const ti of rd.tiles) {
-        if (fogOn && !mine && !s.explored[ti]) continue;
-        const q = ti % s.mapW;
-        const r = Math.floor(ti / s.mapW);
+        if (!seen(ti)) continue;
         fogCol.setHex(0x6e5638).lerp(new THREE.Color(TERRAIN_COLORS[s.tiles[ti].terrain]), 0.25);
         v.terrain.setColorAt(ti, fogCol);
-        const p = new THREE.Mesh(plankGeo, plankMat);
-        p.position.set(hexCenterX(q), tileHeight(s.tiles[ti]) + 0.035, hexCenterZ(q, r));
-        p.rotation.y = hash2(q, r) * Math.PI;
-        v.roadsGroup.add(p);
+      }
+      for (let i = 0; i + 1 < rd.tiles.length; i++) {
+        const ta = rd.tiles[i];
+        const tb = rd.tiles[i + 1];
+        if (!seen(ta) || !seen(tb)) continue;
+        const qa = ta % s.mapW, ra = Math.floor(ta / s.mapW);
+        const qb = tb % s.mapW, rb = Math.floor(tb / s.mapW);
+        const ax = hexCenterX(qa), az = hexCenterZ(qa, ra);
+        const bx = hexCenterX(qb), bz = hexCenterZ(qb, rb);
+        const dx = bx - ax;
+        const dz = bz - az;
+        const len = Math.hypot(dx, dz) + 0.22; // overlap the joints so the track is unbroken
+        const seg = new THREE.Mesh(segGeo, plankMat);
+        seg.position.set((ax + bx) / 2, (tileHeight(s.tiles[ta]) + tileHeight(s.tiles[tb])) / 2 + 0.045, (az + bz) / 2);
+        seg.rotation.y = Math.atan2(-dz, dx);
+        seg.scale.set(len, 0.05, 0.32);
+        v.roadsGroup.add(seg);
       }
     }
     if (v.terrain.instanceColor) v.terrain.instanceColor.needsUpdate = true;
