@@ -14,6 +14,7 @@ const TERRAIN_COLORS: Record<string, number> = {
   hills: 0x8c8158,
   mountain: 0x90959f,
 };
+const ROAD_X_AXIS = new THREE.Vector3(1, 0, 0);
 /** Unexplored ground: the uncharted dark. */
 const FOG_COLOR = 0x0e1a24;
 
@@ -347,12 +348,20 @@ export const scene: SceneView = {
         const qb = tb % s.mapW, rb = Math.floor(tb / s.mapW);
         const ax = hexCenterX(qa), az = hexCenterZ(qa, ra);
         const bx = hexCenterX(qb), bz = hexCenterZ(qb, rb);
+        const ay = tileHeight(s.tiles[ta]) + 0.05;
+        const by = tileHeight(s.tiles[tb]) + 0.05;
         const dx = bx - ax;
+        const dy = by - ay;
         const dz = bz - az;
-        const len = Math.hypot(dx, dz) + 0.22; // overlap the joints so the track is unbroken
+        const run = Math.hypot(dx, dz);
+        const len = Math.hypot(dx, dy, dz) + 0.22; // overlap the joints so the track is unbroken
         const seg = new THREE.Mesh(segGeo, plankMat);
-        seg.position.set((ax + bx) / 2, (tileHeight(s.tiles[ta]) + tileHeight(s.tiles[tb])) / 2 + 0.045, (az + bz) / 2);
-        seg.rotation.y = Math.atan2(-dz, dx);
+        seg.position.set((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2);
+        // Point the plank's long axis along the true 3D slope — yaw alone let the ends
+        // sink into the uphill side and float downhill, breaking the joints on hills.
+        if (run > 1e-6) {
+          seg.quaternion.setFromUnitVectors(ROAD_X_AXIS, new THREE.Vector3(dx, dy, dz).normalize());
+        }
         seg.scale.set(len, 0.05, 0.32);
         v.roadsGroup.add(seg);
       }
