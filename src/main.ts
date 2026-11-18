@@ -345,6 +345,9 @@ ui.init({
 
 scene.onSelectTile(selectTile);
 document.addEventListener('click', () => sfx('click'));
+if ('serviceWorker' in navigator && !location.port) {
+  window.addEventListener('load', () => void navigator.serviceWorker.register('./sw.js').catch(() => undefined));
+}
 
 let last = performance.now();
 function loop(now: number): void {
